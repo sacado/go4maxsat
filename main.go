@@ -10,7 +10,8 @@ import (
 )
 
 const nbSolvers = 100
-const nbRoutines = 4
+
+var nbRoutines = runtime.NumCPU()
 
 type solution struct {
 	score int
@@ -18,14 +19,15 @@ type solution struct {
 }
 
 func main() {
-	runtime.GOMAXPROCS(4)
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr, "Syntax : %s file.cnf\n", os.Args[0])
+	if len(os.Args) != 3 || os.Args[1] != "tabu" && os.Args[1] != "sa" {
+		fmt.Fprintf(os.Stderr, "Syntax : %s tabu|sa file.cnf\n", os.Args[0])
 		os.Exit(1)
 	}
 
-	pb, err := solver.LoadDimacs(os.Args[1])
+	strategy := os.Args[1]
+	pb, err := solver.LoadDimacs(os.Args[2])
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error : %v\n", err)
@@ -40,7 +42,14 @@ func main() {
 				best := len(pb.Clauses)
 
 				for j := 0; j < nbSolvers; j++ {
-					s := solver.NewTabu(pb, rand.Intn(10))
+					var s solver.Solver
+
+					if strategy == "tabu" {
+						s = solver.NewTabu(pb, rand.Intn(10))
+					} else {
+						s = solver.NewAnnealingSolver(pb)
+					}
+
 					model := s.Solve(100000)
 					score := s.Score()
 
